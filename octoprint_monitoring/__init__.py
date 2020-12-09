@@ -37,7 +37,13 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			self.send_data()
 			time.sleep(2)
 
-	def __on_server_ws_msg__(self, ws, cmd):
+	def __on_server_ws_msg__(self, ws, msg):
+		msg_dict = json.loads(msg)
+		for k, v in msg_dict.items():
+			if k == 'source':
+				files = self._file_manager.list_files();
+				files['origin'] = 'octoprint';
+				self.ss.send_text(json.dumps(files))
 		if cmd == 'pause':
 			self._printer.pause_print()
 		elif cmd == 'cancel':
