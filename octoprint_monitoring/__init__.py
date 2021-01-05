@@ -37,25 +37,46 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			self.send_data()
 			time.sleep(2)
 
+
 	def __on_server_ws_msg__(self, ws, msg):
 		msg_dict = json.loads(msg)
 		for k, v in msg_dict.items():
-			if k == 'source':
+			self._logger.info("klic " + k)
+			#First message, client joined and is now watching
+			if k == "source":
+				#Sends list of files
 				files = self._file_manager.list_files();
-				files['origin'] = 'octoprint';
+				files["origin"] = "octoprint";
 				self.ss.send_text(json.dumps(files))
-		if cmd == 'pause':
-			self._printer.pause_print()
-		elif cmd == 'cancel':
-			self._printer.cancel_print()
-		elif cmd == 'resume':
-			self._printer.resume_print()
+
+			#Selecting file for printer
+			if k ==	"job":
+				self._logger.info(v);
+				self._logger.info(self._printer.is_operational());
+				if self._printer.is_operational():
+					self._printer.select_file(v, False, True);
+
+			#Command for ongoing print job
+			if k == "cmd":
+				if self._printer.is_printing():
+					if v == "cancel":
+						self._printer.cancel_print();
+				if v == "toggle":
+					self._printer.toggle_pause_print();
+
+
+		# if cmd == "pause":
+		# 	self._printer.pause_print()
+		# elif cmd == "cancel":
+		# 	self._printer.cancel_print()
+		# elif cmd == "resume":
+		# 	self._printer.resume_print()
 
 	def send_data(self):
 		try:
 			data = self._printer.get_current_data()
-			data['temps'] = self._printer.get_current_temperatures()
-			data['origin'] = 'octoprint'
+			data["temps"] = self._printer.get_current_temperatures()
+			data["origin"] = "octoprint"
 			self.ss.send_text(json.dumps(data))
 		except:
 			import traceback;
@@ -66,7 +87,7 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 	# 		self._logger.info("neco se deje s tiskarnou")
 	# 		try:
 	# 			data = self._printer.get_current_data()
-	# 			data['temps'] = self._printer.get_current_temperatures()
+	# 			data["temps"] = self._printer.get_current_temperatures()
 	# 		except:
 	# 			import traceback;
 	# 			traceback.print_exc()
@@ -86,13 +107,13 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 
 	def get_settings_defaults(self):
 		return dict(
-			# put your plugin's default settings here
+			# put your plugin"s default settings here
 		)
 
 	##~~ AssetPlugin mixin
 
 	def get_assets(self):
-		# Define your plugin's asset files to automatically include in the
+		# Define your plugin"s asset files to automatically include in the
 		# core UI here.
 		return dict(
 			js=["js/monitoring.js"],
