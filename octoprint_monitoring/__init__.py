@@ -46,7 +46,6 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 	# Funkce starající se o příchozí zprávy
 	def __on_server_ws_msg__(self, ws, msg):
 		msg_dict = json.loads(msg)
-		self._logger.info("Zprava prijata")
 		for k, v in msg_dict.items():
 			# První zpráva od klienta nebo žádost o seznam souborů
 			if k == "source" or k == "file_reload":
@@ -73,8 +72,6 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 
 			# Načte soubor a začne tisknout
 			if k == "job":
-				self._logger.info(v)
-				self._logger.info(self._printer.is_operational())
 				# Kontrola jestli je tiskárna připravena k tisku
 				if self._printer.is_ready():
 					self._printer.select_file(v, False, True)
