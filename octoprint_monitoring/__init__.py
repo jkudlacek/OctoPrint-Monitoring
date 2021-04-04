@@ -135,6 +135,11 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 					if int(v) <= 120:
 						self._printer.set_temperature(k, int(v))
 
+			# Klient se již nedívá, cyklus zpráv o aktuálním stavu se může pozastavit
+			if k == "left":
+				if v == True:
+					self.watching=False
+
 	# Funkce přes kterou se odesílají data pro monitoring tisku a stavu tiskárny
 	def send_data(self):
 		try:
@@ -165,26 +170,6 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			except:
 				# Chybová hláška při problémech s připojením
 				self._logger.info("An error occured")
-
-
-	# def on_event(self, event, payload):
-	# 	if event.startswith("Print"):
-	# 		self._logger.info("neco se deje s tiskarnou")
-	# 		try:
-	# 			data = self._printer.get_current_data()
-	# 			data["temps"] = self._printer.get_current_temperatures()
-	# 		except:
-	# 			import traceback;
-	# 			traceback.print_exc()
-	#
-	# 		self._logger.info(format(data))
-
-	# websocket.enableTrace(True)
-	# self.ws = websocket.WebSocketApp(url="ws://127.0.0.1:8765",
-	# 								 on_message=self.on_message,
-	# 								 on_error=self.on_error)
-	# self.ws.on_open = self.on_open(event)
-	# self.ws.run_forever()
 
 	##~~ SettingsPlugin mixin
 
