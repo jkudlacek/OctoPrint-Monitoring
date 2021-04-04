@@ -7,21 +7,24 @@ import json
 
 from .server_conn import ServerConnection
 
+
 class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
-                     octoprint.plugin.AssetPlugin,
-                     octoprint.plugin.EventHandlerPlugin,
-                     octoprint.plugin.TemplatePlugin,
-                     octoprint.plugin.StartupPlugin,
-                     octoprint.plugin.ShutdownPlugin,
-                     octoprint.plugin.SimpleApiPlugin,
-                     octoprint.plugin.WizardPlugin):
+					   octoprint.plugin.AssetPlugin,
+					   octoprint.plugin.EventHandlerPlugin,
+					   octoprint.plugin.TemplatePlugin,
+					   octoprint.plugin.StartupPlugin,
+					   octoprint.plugin.ShutdownPlugin,
+					   octoprint.plugin.SimpleApiPlugin,
+					   octoprint.plugin.WizardPlugin):
+
+	watching = False
 
 	def on_after_startup(self):
 		self._logger.info("Monitoring started")
 		# Hodnoty pro připojení k serveru
 		self.ss = ServerConnection(
-					url = self._settings.get(["url"]),
-					on_server_ws_msg=self.__on_server_ws_msg__)
+			url=self._settings.get(["url"]),
+			on_server_ws_msg=self.__on_server_ws_msg__)
 		# Začne nové vlákno pro běh na pozadí
 		wst = threading.Thread(target=self.ss.run)
 		wst.daemon = True
@@ -36,28 +39,31 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			self.ss.send_text(json.dumps(data))
 		while self.ss.connected():
 			# Aktualizace stavu dokud je websocket spojení navázané
-			self.send_data()
+			if (self.watching):
+				self.send_data()
 			time.sleep(2)
 
 	# Funkce starající se o příchozí zprávy
 	def __on_server_ws_msg__(self, ws, msg):
-		# Načtení zprávy do dictionary
 		msg_dict = json.loads(msg)
+		self._logger.info("Zprava prijata")
 		for k, v in msg_dict.items():
-			#První zpráva od klienta nebo žádost o seznam souborů
+			# První zpráva od klienta nebo žádost o seznam souborů
 			if k == "source" or k == "file_reload":
-				#Pošle seznam souborů
-				files = self._file_manager.list_files();
-				files["origin"] = "octoprint";
+				# Pošle seznam souborů
+				files = self._file_manager.list_files()
+				files["origin"] = "octoprint"
 				self.ss.send_text(json.dumps(files))
 
 				if k == "source":
-					#V příapdě první zprávy pošle seznam možných portů a rychlostí připojení k tiskárně
+					# V příapdě první zprávy pošle seznam možných portů a rychlostí připojení k tiskárně
 					connect_opts = self._printer.get_connection_options()
 					connect_opts["origin"] = "octoprint"
 					self.ss.send_text(json.dumps(connect_opts))
+					# Spuštění cyklu zpráv
+					self.watching = True
 
-			#Připojení k tiskárně
+			# Připojení k tiskárně
 			if k == "connect":
 				self._printer.connect(v["port"], v["baudrate"])
 
@@ -65,53 +71,53 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			if k == "disconnect":
 				self._printer.disconnect()
 
-			#Načte soubor a začne tisknout
-			if k ==	"job":
-				self._logger.info(v);
-				self._logger.info(self._printer.is_operational());
+			# Načte soubor a začne tisknout
+			if k == "job":
+				self._logger.info(v)
+				self._logger.info(self._printer.is_operational())
 				# Kontrola jestli je tiskárna připravena k tisku
 				if self._printer.is_ready():
-					self._printer.select_file(v, False, True);
+					self._printer.select_file(v, False, True)
 
-			#Příkazy pro probíhající tiskovou úlohu
+			# Příkazy pro probíhající tiskovou úlohu
 			if k == "cmd":
 				if self._printer.is_printing():
 					# Ukončení tisku
 					if v == "cancel":
-						self._printer.cancel_print();
+						self._printer.cancel_print()
 				if self._printer.is_ready():
 					if v == "print":
 						# Začne tisknout načtený soubor
-						self._printer.start_print();
+						self._printer.start_print()
 				if v == "toggle":
 					# Pozastaví/rozběhne probíhající tiskovou úlohu
-					self._printer.toggle_pause_print();
+					self._printer.toggle_pause_print()
 
 			# Kod pro tiskovou úlohu s opoždeným startem
 			if k == "delay":
 				difference = v["difference"]
-				name=str(v["file"])
+				name = str(v["file"])
 				serial = None
 				baud = None
 				# Nastavení připojovacích možnosti
 				if v["serial"] and v["baud"]:
-					serial=v["serial"]
-					baud=v["baud"]
+					serial = v["serial"]
+					baud = v["baud"]
 				# Časové omezení funkce, proběhne pouze jestli je rozdíl mezi současným a plánovaným časem v tomto rozmezí (1s - ~48h)
-				if difference >= 1000 and difference <=172800000:
-					t = threading.Timer(difference/1000, self.print_job, [name, serial, baud])
+				if 1000 <= difference <= 172800000:
+					t = threading.Timer(difference / 1000, self.print_job, [name, serial, baud])
 					t.start()
 
 			# Pohyb s tiskovou hlavou/podložkou
 			if k == "jog":
 				# Kontrola obsažených os
-				if (v[0] in "xyz"):
-					axes={}
-					axis=str(v[0])
-					if (v[1] in "+-"):
+				if v[0] in "xyz":
+					axes = {}
+					axis = str(v[0])
+					if v[1] in "+-":
 						# Nastavení hodnoty o kterou se tisková hlava/podložka posune
-						amount=str(v[1]+self._settings.get(["step"]))
-						axes[axis]=amount
+						amount = str(v[1] + self._settings.get(["step"]))
+						axes[axis] = amount
 						self._printer.jog(axes)
 
 			# Kalibrace os, všechny specifikované osy se vrátí "domů"
@@ -123,10 +129,10 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			if k == "tool0" or k == "bed":
 				if k == "tool0":
 					# Kontrola hodnoty proti maximální teplotě
-					if (int(v) <= 300):
+					if int(v) <= 300:
 						self._printer.set_temperature(k, int(v))
 				if k == "bed":
-					if (int(v) <= 120):
+					if int(v) <= 120:
 						self._printer.set_temperature(k, int(v))
 
 	# Funkce přes kterou se odesílají data pro monitoring tisku a stavu tiskárny
@@ -140,14 +146,14 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			data["origin"] = "octoprint"
 			self.ss.send_text(json.dumps(data))
 		except:
-			import traceback;
+			import traceback
 			traceback.print_exc()
 
 	# Funkce se stará o opožděný start tiskové úlohy
 	def print_job(self, file, serial, baud):
 		# Pokud je tiskárna připravená, začne tisknout
 		if self._printer.is_ready():
-			self._printer.select_file(file, False, True);
+			self._printer.select_file(file, False, True)
 		# Jestli není Octoprint s tiskárnou spojený pokusí se o připojení
 		elif self._printer.get_state_id() == "OFFLINE":
 			try:
@@ -158,9 +164,7 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 				self.print_job(file, serial, baud)
 			except:
 				# Chybová hláška při problémech s připojením
-				self._logger.info("An error occured");
-
-
+				self._logger.info("An error occured")
 
 
 	# def on_event(self, event, payload):
@@ -181,8 +185,6 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 	# 								 on_error=self.on_error)
 	# self.ws.on_open = self.on_open(event)
 	# self.ws.run_forever()
-
-
 
 	##~~ SettingsPlugin mixin
 
@@ -232,9 +234,10 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 		)
 
 
-#Plugin declarations
+# Plugin declarations
 __plugin_name__ = "Printer Monitor"
-__plugin_pythoncompat__ = ">=3,<4" # only python 3
+__plugin_pythoncompat__ = ">=3,<4"  # only python 3
+
 
 def __plugin_load__():
 	global __plugin_implementation__
@@ -244,4 +247,3 @@ def __plugin_load__():
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
 	}
-

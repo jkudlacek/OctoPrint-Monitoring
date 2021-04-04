@@ -1,5 +1,4 @@
 import websocket
-import time
 
 class ServerConnection:
 	def __init__(self, url, on_server_ws_msg):
@@ -34,5 +33,5 @@ class ServerConnection:
 
 	# Odpojení od serveru
 	def disconnect(self):
-		self.ws.keep_running = False;
+		self.ws.keep_running = False
 		self.ws.close()
