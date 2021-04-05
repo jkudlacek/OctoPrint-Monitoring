@@ -18,6 +18,7 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 					   octoprint.plugin.WizardPlugin):
 
 	watching = False
+	steps = ["0.1", "1", "10", "50", "100"]
 
 	def on_after_startup(self):
 		self._logger.info("Monitoring started")
@@ -41,7 +42,8 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			# Aktualizace stavu dokud je websocket spojení navázané
 			if (self.watching):
 				self.send_data()
-			time.sleep(2)
+			# 	Interval ve kterém se posílají aktualizace
+			time.sleep(self._settings.get(["interval"]))
 
 	# Funkce starající se o příchozí zprávy
 	def __on_server_ws_msg__(self, ws, msg):
@@ -78,10 +80,9 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 
 			# Příkazy pro probíhající tiskovou úlohu
 			if k == "cmd":
-				if self._printer.is_printing():
-					# Ukončení tisku
-					if v == "cancel":
-						self._printer.cancel_print()
+				# Ukončení tisku
+				if v == "cancel":
+					self._printer.cancel_print()
 				if self._printer.is_ready():
 					if v == "print":
 						# Začne tisknout načtený soubor
@@ -108,14 +109,18 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 			# Pohyb s tiskovou hlavou/podložkou
 			if k == "jog":
 				# Kontrola obsažených os
-				if v[0] in "xyz":
+				self._logger.info(v)
+				if v["axis"][0] in "xyz":
 					axes = {}
-					axis = str(v[0])
-					if v[1] in "+-":
-						# Nastavení hodnoty o kterou se tisková hlava/podložka posune
-						amount = str(v[1] + self._settings.get(["step"]))
-						axes[axis] = amount
-						self._printer.jog(axes)
+					axis = str(v["axis"][0])
+					if v["axis"][1] in "+-":
+						self._logger.info(v["step"])
+						if v["step"] in self.steps:
+							# Nastavení hodnoty o kterou se osa posune
+							amount = str(v["axis"][1] + v["step"])
+							axes[axis] = amount
+							self._logger.info(axes)
+							self._printer.jog(axes)
 
 			# Kalibrace os, všechny specifikované osy se vrátí "domů"
 			if k == "home":
@@ -171,9 +176,9 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 	##~~ SettingsPlugin mixin
 
 	def get_settings_defaults(self):
-		# Výchozí nastavení URl adresy a jednoho kroku pohybu v milimetrech
+		# Výchozí nastavení URl adresy a intervalu odesílání zpráv
 		return dict(
-			step=10,
+			interval=2,
 			url="ws://127.0.0.1:8765",
 		)
 
