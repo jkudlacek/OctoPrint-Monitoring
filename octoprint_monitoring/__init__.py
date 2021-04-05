@@ -57,7 +57,7 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 				self.ss.send_text(json.dumps(files))
 
 				if k == "source":
-					# V příapdě první zprávy pošle seznam možných portů a rychlostí připojení k tiskárně
+					# V případě první zprávy pošle seznam možných portů a rychlostí připojení k tiskárně
 					connect_opts = self._printer.get_connection_options()
 					connect_opts["origin"] = "octoprint"
 					self.ss.send_text(json.dumps(connect_opts))
