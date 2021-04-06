@@ -16,8 +16,9 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 					   octoprint.plugin.ShutdownPlugin,
 					   octoprint.plugin.SimpleApiPlugin,
 					   octoprint.plugin.WizardPlugin):
-
+	# Proměnná představuje připojeného klienta ve webové aplikaci, jestli se nedívá je nastavená na False
 	watching = False
+	# Možné vzdálenosti jednoho kroku
 	steps = ["0.1", "1", "10", "50", "100"]
 
 	def on_after_startup(self):
@@ -31,6 +32,7 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 		wst.daemon = True
 		wst.start()
 
+		# Obsah první zprávy, dává serveru vědět adresu zdroje
 		data = {"source": "octoprint"}
 
 		# Čas pro navázaní spojení
@@ -47,6 +49,7 @@ class MonitoringPlugin(octoprint.plugin.SettingsPlugin,
 
 	# Funkce starající se o příchozí zprávy
 	def __on_server_ws_msg__(self, ws, msg):
+		# Načtení zprávy do pole
 		msg_dict = json.loads(msg)
 		for k, v in msg_dict.items():
 			# První zpráva od klienta nebo žádost o seznam souborů
